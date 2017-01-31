@@ -209,11 +209,12 @@ def extract_archive(archive_path, dest_dir, topdir=None, name=None):
 
 
 class BuildEnv:
-    build_targets = ['native', 'win32']
+    build_targets = ['native', 'win32', 'arm']
 
     _targets_env = {
         'native' : {},
-        'win32'  : {'wrapper': 'mingw32-env'}
+        'win32'  : {'wrapper': 'mingw32-env'},
+        'arm'    : {}
     }
 
     def __init__(self, options, targetsDict):
@@ -606,6 +607,15 @@ class Builder:
 
     def command(self, *args, **kwargs):
         return self.target.command(*args, **kwargs)
+        
+    def _configure(self, *args, **kwargs):
+        raise SkipCommand()
+
+    def _compile(self, *args, **kwargs):
+        raise SkipCommand()
+
+    def _install(self, *args, **kwargs):
+        raise SkipCommand()
 
     def build(self):
         self.command('configure', self._configure)
@@ -746,6 +756,21 @@ class MesonBuilder(Builder):
 # libiconv
 # gettext
 # *************************************
+
+
+class RaspeberryToolchain(Dependency):
+    name = 'RaspeberryToolchain'
+    
+    class Source(GitClone):
+        git_remote = "https://github.com/raspberrypi/tools"
+        git_dir = "tools"
+
+    class Builder(Builder):
+        def _install(self, context):
+            bin_dir = pj(self.install_dir, 'bin')
+            for filename in os.listdir(self.source_path):
+                shutil.copy(pj(self.source_path, filename), pj(bin_dir, filename))
+
 
 class zlib(Dependency):
     name = 'zlib'

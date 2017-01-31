@@ -15,4 +15,3 @@ sudo cp ninja /bin
 
 cd $orig_dir
 
-git clone https://github.com/kiwix/kiwix-build

@@ -3,3 +3,6 @@ dist: trusty
 sudo: required
 install: travis/install_extra_deps.sh
 script: travis/compile_all.sh
+env:
+ - STATIC_BUILD=true
+ - STATIC_BUILD=false

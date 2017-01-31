@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
-./kiwix-build.py --verbose
+OPTION=""
+if [ "${STATIC_BUILD}" = "true" ]; then
+    OPTION="--build-static"
+fi
 
-./kiwix-build.py --verbose --build-static
+STATIC_BUILD
+
+
+./kiwix-build.py ${OPTION}

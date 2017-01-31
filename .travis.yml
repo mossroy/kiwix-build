@@ -1,0 +1,5 @@
+language: cpp
+dist: trusty
+sudo: required
+install: travis/install_extra_deps.sh
+script: travis/compile_all.sh

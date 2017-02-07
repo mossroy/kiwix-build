@@ -115,10 +115,10 @@ PACKAGE_NAME_MAPPERS = {
         'ctpp2': ['libctpp2-dev'],
     },
     'debian_win32_dyn' : {
-        'COMMON' : ['g++-mingw-w64-i686', 'gcc-mingw-w64-i686', 'gcc-mingw-w64-base', 'mingw-w64-tools', 'wine']
+        'COMMON' : ['g++-mingw-w64-i686', 'gcc-mingw-w64-i686', 'gcc-mingw-w64-base', 'mingw-w64-tools']
     },
     'debian_win32_static' : {
-        'COMMON' : ['g++-mingw-w64-i686', 'gcc-mingw-w64-i686', 'gcc-mingw-w64-base', 'mingw-w64-tools', 'wine']
+        'COMMON' : ['g++-mingw-w64-i686', 'gcc-mingw-w64-i686', 'gcc-mingw-w64-base', 'mingw-w64-tools']
     },
 }
 

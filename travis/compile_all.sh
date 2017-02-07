@@ -5,7 +5,4 @@ if [ "${STATIC_BUILD}" = "true" ]; then
     OPTION="--build-static"
 fi
 
-STATIC_BUILD
-
-
-./kiwix-build.py ${OPTION}
+./kiwix-build.py --build-target=${BUILD_TARGET} ${OPTION}

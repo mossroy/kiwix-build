@@ -4,5 +4,7 @@ sudo: required
 install: travis/install_extra_deps.sh
 script: travis/compile_all.sh
 env:
- - STATIC_BUILD=true
- - STATIC_BUILD=false
+ - STATIC_BUILD=true BUILD_TARGET=native
+ - STATIC_BUILD=true BUILD_TARGET=win32
+ - STATIC_BUILD=false BUILD_TARGET=native
+ - STATIC_BIULD=false BUILD_TARGET=win23

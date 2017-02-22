@@ -2,9 +2,10 @@
 
 set -e
 
-OPTION=""
 if [ "${STATIC_BUILD}" = "true" ]; then
-    OPTION="--build-static"
+    OPTION="${BUILD_TARGET}_static"
+else
+    OPTION="${BUILD_TARGET}_dyn"
 fi
 
-./kiwix-build.py --build-target=${BUILD_TARGET} ${OPTION}
+./kiwix-build.py --build-target=${OPTION}

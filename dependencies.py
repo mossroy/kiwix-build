@@ -44,12 +44,12 @@ class zlib(Dependency):
 
         @property
         def all_configure_option(self):
-            return '--static' if self.buildEnv.build_static else '--shared'
+            return '--static' if self.buildEnv.target_info.static else '--shared'
 
         @property
         def configure_option(self):
             options = "-DINSTALL_PKGCONFIG_DIR={}".format(pj(self.buildEnv.install_dir, self.buildEnv.libprefix, 'pkgconfig'))
-            if self.buildEnv.build_static:
+            if self.buildEnv.target_info.static:
                 options += " -DBUILD_SHARED_LIBS=false"
             else:
                 options += " -DBUILD_SHARED_LIBS=true"
@@ -122,7 +122,7 @@ class Xapian(Dependency):
     @property
     def dependencies(self):
         deps = ['zlib', 'lzma']
-        if self.buildEnv.build_target == 'win32':
+        if self.buildEnv.target_info.build == 'win32':
             return deps
         return deps + ['UUID']
 
@@ -242,7 +242,7 @@ class Kiwixlib(Dependency):
 
     @property
     def dependencies(self):
-        if self.buildEnv.build_target == 'win32':
+        if self.buildEnv.target_info.build == 'win32':
             return ["Xapian", "CTPP2", "Pugixml", "Icu_cross_compile", "Zimlib"]
         return ["Xapian", "CTPP2", "Pugixml", "Icu", "Zimlib"]
 
@@ -266,6 +266,6 @@ class KiwixTools(Dependency):
         @property
         def configure_option(self):
             base_options = "-Dctpp2-install-prefix={buildEnv.install_dir}"
-            if self.buildEnv.build_static:
+            if self.buildEnv.target_info.static:
                 base_options += " -Dstatic-linkage=true"
             return base_options

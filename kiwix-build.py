@@ -5,7 +5,7 @@ import argparse
 import urllib.request
 import subprocess
 import platform
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 
 from dependencies import Dependency
 from utils import (
@@ -118,15 +118,22 @@ def which(name):
     return output[:-1].decode()
 
 
+class TargetInfo(namedtuple('TargetInfo', ('build', 'static'))):
+    def __str__(self):
+        return "{}_{}".format(self.build, 'static' if self.static else 'dyn')
+
+
 class BuildEnv:
-    build_targets = ['native', 'win32']
+    build_targets = {
+        'native_dyn': TargetInfo('native', False),
+        'native_static': TargetInfo('native', True),
+        'win32_dyn': TargetInfo('win32', False),
+        'win32_static': TargetInfo('win32', True)
+    }
 
     def __init__(self, options, targetsDict):
         self.source_dir = pj(options.working_dir, "SOURCE")
-        build_dir = "BUILD_{target}_{libmod}".format(
-            target=options.build_target,
-            libmod='static' if options.build_static else 'dyn'
-        )
+        build_dir = "BUILD_{}".format(options.build_target)
         self.build_dir = pj(options.working_dir, build_dir)
         self.archive_dir = pj(options.working_dir, "ARCHIVE")
         self.log_dir = pj(options.working_dir, 'LOGS')
@@ -169,19 +176,19 @@ class BuildEnv:
                 self.distname = 'debian'
 
     def setup_build(self, target):
-        self.build_target = target
-        if target == 'native':
+        self.target_info = target_info = self.build_targets[target]
+        if target_info.build == 'native':
             self.cross_env = {}
         else:
             cross_name = "{host}_{target}".format(
                 host = self.distname,
-                target = self.build_target)
+                target = target_info.build)
             try:
                 self.cross_env = CROSS_ENV[cross_name]
             except KeyError:
                 sys.exit("ERROR : We don't know how to set env to compile"
                          " a {target} version on a {host} host.".format(
-                            target = self.build_target,
+                            target = target_info.build,
                             host = self.distname
                         ))
 
@@ -191,7 +198,7 @@ class BuildEnv:
                               for toolchain_name in toolchain_names]
 
     def finalize_setup(self):
-        getattr(self, 'setup_{}'.format(self.build_target))()
+        getattr(self, 'setup_{}'.format(self.target_info.build))()
 
     def setup_native(self):
         self.cmake_crossfile = None
@@ -359,17 +366,15 @@ class BuildEnv:
         elif self.distname in ('debian', 'Ubuntu'):
             package_installer = 'sudo apt-get install {}'
             package_checker = 'LANG=C dpkg -s {} 2>&1 | grep Status | grep "ok installed" 1>/dev/null 2>&1'
-        mapper_name = "{host}_{target}_{build_type}".format(
+        mapper_name = "{host}_{target}".format(
             host=self.distname,
-            target=self.build_target,
-            build_type='static' if self.options.build_static else 'dyn')
+            target=self.target_info)
         try:
             package_name_mapper = PACKAGE_NAME_MAPPERS[mapper_name]
         except KeyError:
             print("SKIP : We don't know which packages we must install to compile"
                   " a {target} {build_type} version on a {host} host.".format(
-                      target=self.build_target,
-                      build_type='static' if self.options.build_static else 'dyn',
+                      target=self.target_info,
                       host=self.distname))
             return
 
@@ -531,8 +536,7 @@ def parse_args():
     parser.add_argument('targets', default='KiwixTools', nargs='?')
     parser.add_argument('--working-dir', default=".")
     parser.add_argument('--libprefix', default=None)
-    parser.add_argument('--build-static', action="store_true")
-    parser.add_argument('--build-target', default="native", choices=BuildEnv.build_targets)
+    parser.add_argument('--build-target', default="native_dyn", choices=BuildEnv.build_targets)
     parser.add_argument('--verbose', '-v', action="store_true",
                         help=("Print all logs on stdout instead of in specific"
                               " log files per commands"))

@@ -1,6 +1,6 @@
 import os.path
 import hashlib
-import tarfile
+import tarfile, zipfile
 import tempfile
 from collections import namedtuple, defaultdict
 
@@ -63,29 +63,46 @@ class Context:
 
 
 def extract_archive(archive_path, dest_dir, topdir=None, name=None):
-    with tarfile.open(archive_path) as archive:
-        members = archive.getmembers()
+    is_zip_archive = archive_path.endswith('.zip')
+    try:
+        if is_zip_archive:
+            archive = zipfile.ZipFile(archive_path)
+            members = archive.infolist()
+            getname = lambda info : info.filename
+            isdir = lambda info: info.filename.endswith('/')
+        else:
+            archive = tarfile.open(archive_path)
+            members = archive.getmembers()
+            getname = lambda info : getattr(info, 'name')
+            isdir = lambda info: info.isdir()
         if not topdir:
-            for d in (m for m in members if m.isdir()):
-                if not os.path.dirname(d.name):
+            for d in (m for m in members if isdir(m)):
+                _name = getname(d)
+                if _name.endswith('/'):
+                    _name = _name[:-1]
+                if not os.path.dirname(_name):
                     if topdir:
                         # There is already a top dir.
                         # Two topdirs in the same archive.
                         # Extract all
                         topdir = None
                         break
-                    topdir = d
-        else:
-            topdir = archive.getmember(topdir)
+                    topdir = _name
         if topdir:
-            members_to_extract = [m for m in members if m.name.startswith(topdir.name+'/')]
+            members_to_extract = [m for m in members if getname(m).startswith(topdir+'/')]
+            if is_zip_archive:
+                members_to_extract = [getname(m) for m in members_to_extract]
             os.makedirs(dest_dir, exist_ok=True)
             with tempfile.TemporaryDirectory(prefix=os.path.basename(archive_path), dir=dest_dir) as tmpdir:
                 archive.extractall(path=tmpdir, members=members_to_extract)
-                name = name or topdir.name
-                os.rename(pj(tmpdir, topdir.name), pj(dest_dir, name))
+                name = name or topdir
+                os.rename(pj(tmpdir, topdir), pj(dest_dir, name))
         else:
             if name:
                 dest_dir = pj(dest_dir, name)
                 os.makedirs(dest_dir)
             archive.extractall(path=dest_dir)
+    finally:
+        if archive is not None:
+            archive.close()
+

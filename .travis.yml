@@ -14,16 +14,16 @@ deploy:
   on:
     condition: ( "$DEPLOY" = "true" ) && ( "$TRAVIS_EVENT_TYPE" = "cron" )
 env:
- - BUILD_OPTION="--build-target=native_dyn"
- - BUILD_OPTION="--build-target=native_static" ARCHIVE_TYPE="--tar" DEPLOY=true
- - BUILD_OPTION="--build-target=win32_dyn"
- - BUILD_OPTION="--build-target=win32_static" ARCHIVE_TYPE="--zip" DEPLOY=true
- - BUILD_OPTION="--build-target=android_arm Kiwixlib"
- - BUILD_OPTION="--build-target=android_arm64 Kiwixlib"
- - BUILD_OPTION="--build-target=android_mips Kiwixlib"
- - BUILD_OPTION="--build-target=android_mips64 Kiwixlib"
- - BUILD_OPTION="--build-target=android_x86 Kiwixlib"
- - BUILD_OPTION="--build-target=android_x86_64 Kiwixlib"
+ - BUILD_OPTION="--target-platform=native_dyn"
+ - BUILD_OPTION="--target-platform=native_static" ARCHIVE_TYPE="--tar" DEPLOY=true
+ - BUILD_OPTION="--target-platform=win32_dyn"
+ - BUILD_OPTION="--target-platform=win32_static" ARCHIVE_TYPE="--zip" DEPLOY=true
+ - BUILD_OPTION="--target-platform=android_arm Kiwixlib"
+ - BUILD_OPTION="--target-platform=android_arm64 Kiwixlib"
+ - BUILD_OPTION="--target-platform=android_mips Kiwixlib"
+ - BUILD_OPTION="--target-platform=android_mips64 Kiwixlib"
+ - BUILD_OPTION="--target-platform=android_x86 Kiwixlib"
+ - BUILD_OPTION="--target-platform=android_x86_64 Kiwixlib"
 notifications:
   irc:
     channels:

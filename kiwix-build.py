@@ -164,7 +164,7 @@ class AndroidTargetInfo(TargetInfo):
 
 
 class BuildEnv:
-    build_targets = {
+    target_platforms = {
         'native_dyn': TargetInfo('native', False),
         'native_static': TargetInfo('native', True),
         'win32_dyn': TargetInfo('win32', False),
@@ -179,7 +179,7 @@ class BuildEnv:
 
     def __init__(self, options, targetsDict):
         self.source_dir = pj(options.working_dir, "SOURCE")
-        build_dir = "BUILD_{}".format(options.build_target)
+        build_dir = "BUILD_{}".format(options.target_platform)
         self.build_dir = pj(options.working_dir, build_dir)
         self.archive_dir = pj(options.working_dir, "ARCHIVE")
         self.log_dir = pj(options.working_dir, 'LOGS')
@@ -197,7 +197,7 @@ class BuildEnv:
         self.meson_command = self._detect_meson()
         if not self.meson_command:
             sys.exit("ERROR: meson command not fount")
-        self.setup_build(options.build_target)
+        self.setup_build(options.target_platform)
         self.setup_toolchains()
         self.options = options
         self.libprefix = options.libprefix or self._detect_libdir()
@@ -221,20 +221,20 @@ class BuildEnv:
             if self.distname == 'ubuntu':
                 self.distname = 'debian'
 
-    def setup_build(self, target):
-        self.target_info = target_info = self.build_targets[target]
-        if target_info.build == 'native':
+    def setup_build(self, target_platform):
+        self.platform_info = platform_info = self.target_platforms[target_platform]
+        if platform_info.build == 'native':
             self.cross_env = {}
         else:
             cross_name = "{host}_{target}".format(
                 host = self.distname,
-                target = target_info.build)
+                target = platform_info.build)
             try:
                 self.cross_env = CROSS_ENV[cross_name]
             except KeyError:
                 sys.exit("ERROR : We don't know how to set env to compile"
                          " a {target} version on a {host} host.".format(
-                            target = target_info.build,
+                            target = platform_info.build,
                             host = self.distname
                         ))
 
@@ -244,7 +244,7 @@ class BuildEnv:
                               for toolchain_name in toolchain_names]
 
     def finalize_setup(self):
-        getattr(self, 'setup_{}'.format(self.target_info.build))()
+        getattr(self, 'setup_{}'.format(self.platform_info.build))()
 
     def setup_native(self):
         self.cmake_crossfile = None
@@ -421,13 +421,13 @@ class BuildEnv:
             package_checker = 'LANG=C dpkg -s {} 2>&1 | grep Status | grep "ok installed" 1>/dev/null 2>&1'
         mapper_name = "{host}_{target}".format(
             host=self.distname,
-            target=self.target_info)
+            target=self.platform_info)
         try:
             package_name_mapper = PACKAGE_NAME_MAPPERS[mapper_name]
         except KeyError:
             print("SKIP : We don't know which packages we must install to compile"
                   " a {target} {build_type} version on a {host} host.".format(
-                      target=self.target_info,
+                      target=self.platform_info,
                       host=self.distname))
             return
 
@@ -592,11 +592,11 @@ class android_ndk(Toolchain):
 
     @property
     def arch(self):
-        return self.buildEnv.target_info.arch
+        return self.buildEnv.platform_info.arch
 
     @property
     def arch_full(self):
-        return self.buildEnv.target_info.arch_full
+        return self.buildEnv.platform_info.arch_full
 
     @property
     def toolchain(self):
@@ -775,7 +775,7 @@ def parse_args():
     parser.add_argument('targets', default='KiwixTools', nargs='?')
     parser.add_argument('--working-dir', default=".")
     parser.add_argument('--libprefix', default=None)
-    parser.add_argument('--build-target', default="native_dyn", choices=BuildEnv.build_targets)
+    parser.add_argument('--target-platform', default="native_dyn", choices=BuildEnv.target_platforms)
     parser.add_argument('--verbose', '-v', action="store_true",
                         help=("Print all logs on stdout instead of in specific"
                               " log files per commands"))

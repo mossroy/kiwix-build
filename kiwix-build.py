@@ -127,6 +127,9 @@ PACKAGE_NAME_MAPPERS = {
     'debian_android': {
         'COMMON': ['gcc', 'cmake', 'ccache']
     },
+    'Darwin_native_dyn': {
+        'COMMON': ['autoconf', 'automake', 'libtool']
+    },
 }
 
 

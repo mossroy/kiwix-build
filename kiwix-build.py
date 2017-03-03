@@ -128,7 +128,9 @@ PACKAGE_NAME_MAPPERS = {
         'COMMON': ['gcc', 'cmake', 'ccache']
     },
     'Darwin_native_dyn': {
-        'COMMON': ['autoconf', 'automake', 'libtool']
+        'COMMON': ['autoconf', 'automake', 'libtool'],
+        'zlib': [],
+
     },
 }
 
@@ -430,6 +432,9 @@ class BuildEnv:
         elif self.distname in ('debian', 'Ubuntu'):
             package_installer = 'sudo apt-get install {}'
             package_checker = 'LANG=C dpkg -s {} 2>&1 | grep Status | grep "ok installed" 1>/dev/null 2>&1'
+        elif self.distname == 'Darwin':
+            package_installer = 'brew install {}'
+            package_checker = 'brew list -1 | grep -q {}'
         mapper_name = "{host}_{target}".format(
             host=self.distname,
             target=self.platform_info)

@@ -640,6 +640,187 @@ class android_ndk(Toolchain):
     def configure_option(self):
         return '--host={}'.format(self.arch_full)
 
+class MakeBuilder(Builder):
+    configure_option = static_configure_option = dynamic_configure_option = ""
+    make_option = ""
+    install_option = ""
+    configure_script = "configure"
+    configure_env = None
+    make_target = ""
+    make_install_target = "install"
+
+    def _configure(self, context):
+        context.try_skip(self.build_path)
+        configure_option = "{} {} {}".format(
+            self.configure_option,
+            self.static_configure_option if self.buildEnv.build_static else self.dynamic_configure_option,
+            self.buildEnv.configure_option)
+        command = "{configure_script} {configure_option} --prefix {install_dir} --libdir {libdir}"
+        command = command.format(
+            configure_script = pj(self.source_path, self.configure_script),
+            configure_option = configure_option,
+            install_dir = self.buildEnv.install_dir,
+            libdir = pj(self.buildEnv.install_dir, self.buildEnv.libprefix)
+        )
+        env = Defaultdict(str, os.environ)
+        if self.buildEnv.build_static:
+            env['CFLAGS'] = env['CFLAGS'] + ' -fPIC'
+        if self.configure_env:
+           for k in self.configure_env:
+               if k.startswith('_format_'):
+                   v = self.configure_env.pop(k)
+                   v = v.format(buildEnv=self.buildEnv, env=env)
+                   self.configure_env[k[8:]] = v
+           env.update(self.configure_env)
+        self.buildEnv.run_command(command, self.build_path, context, env=env)
+
+    def _compile(self, context):
+        context.try_skip(self.build_path)
+        command = "make -j4 {make_target} {make_option}".format(
+            make_target = self.make_target,
+            make_option = self.make_option
+        )
+        self.buildEnv.run_command(command, self.build_path, context)
+
+    def  _install(self, context):
+        context.try_skip(self.build_path)
+        command = "make {make_install_target} {make_option}".format(
+            make_install_target = self.make_install_target,
+            make_option = self.make_option
+        )
+        self.buildEnv.run_command(command, self.build_path, context)
+
+
+class CMakeBuilder(MakeBuilder):
+    def _configure(self, context):
+        context.try_skip(self.build_path)
+        command = ("cmake {configure_option}"
+                   " -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON"
+                   " -DCMAKE_INSTALL_PREFIX={install_dir}"
+                   " -DCMAKE_INSTALL_LIBDIR={libdir}"
+                   " {source_path}"
+                   " {cross_option}")
+        command = command.format(
+            configure_option = "{} {}".format(self.buildEnv.cmake_option, self.configure_option),
+            install_dir = self.buildEnv.install_dir,
+            libdir = self.buildEnv.libprefix,
+            source_path = self.source_path,
+            cross_option = "-DCMAKE_TOOLCHAIN_FILE={}".format(self.buildEnv.cmake_crossfile) if self.buildEnv.cmake_crossfile else ""
+        )
+        env = Defaultdict(str, os.environ)
+        if self.buildEnv.build_static:
+            env['CFLAGS'] = env['CFLAGS'] + ' -fPIC'
+        if self.configure_env:
+           for k in self.configure_env:
+               if k.startswith('_format_'):
+                   v = self.configure_env.pop(k)
+                   v = v.format(buildEnv=self.buildEnv, env=env)
+                   self.configure_env[k[8:]] = v
+           env.update(self.configure_env)
+        self.buildEnv.run_command(command, self.build_path, context, env=env, allow_wrapper=False)
+
+
+class MesonBuilder(Builder):
+    configure_option = ""
+
+    def _configure(self, context):
+        context.try_skip(self.build_path)
+        if os.path.exists(self.build_path):
+            shutil.rmtree(self.build_path)
+        os.makedirs(self.build_path)
+        if self.buildEnv.build_static:
+            library_type = 'static'
+        else:
+            library_type = 'shared'
+        configure_option = self.configure_option.format(buildEnv=self.buildEnv)
+        command = ("{command} . {build_path}"
+                   " --default-library={library_type}"
+                   " {configure_option}"
+                   " --prefix={buildEnv.install_dir}"
+                   " --libdir={buildEnv.libprefix}"
+                   " {cross_option}")
+        command = command.format(
+            command = self.buildEnv.meson_command,
+            library_type=library_type,
+            configure_option=configure_option,
+            build_path = self.build_path,
+            buildEnv=self.buildEnv,
+            cross_option = "--cross-file {}".format(self.buildEnv.meson_crossfile) if self.buildEnv.meson_crossfile else ""
+        )
+        self.buildEnv.run_command(command, self.source_path, context, allow_wrapper=False)
+
+    def _compile(self, context):
+        command = "{} -v".format(self.buildEnv.ninja_command)
+        self.buildEnv.run_command(command, self.build_path, context, allow_wrapper=False)
+
+    def _install(self, context):
+        command = "{} -v install".format(self.buildEnv.ninja_command)
+        self.buildEnv.run_command(command, self.build_path, context, allow_wrapper=False)
+
+
+# *************************************
+# Missing dependencies
+# Is this ok to assume that those libs
+# exist in your "distri" (linux/mac) ?
+# If not, we need to compile them here
+# *************************************
+# Zlib
+# LZMA
+# aria2
+# Argtable
+# MSVirtual
+# Android
+# libiconv
+# gettext
+# *************************************
+
+class zlib(Dependency):
+    name = 'zlib'
+    version = '1.2.8'
+
+    class Source(ReleaseDownload):
+        archive = Remotefile('zlib-1.2.8.tar.gz',
+                             '36658cb768a54c1d4dec43c3116c27ed893e88b02ecfcb44f2166f9c0b7f2a0d')
+        patches = ['zlib_std_libname.patch']
+
+    class Builder(CMakeBuilder):
+        @property
+        def configure_option(self):
+            return "-DINSTALL_PKGCONFIG_DIR={}".format(pj(self.buildEnv.install_dir, self.buildEnv.libprefix, 'pkgconfig'))
+
+class UUID(Dependency):
+    name = 'uuid'
+    version = "1.43.4"
+
+    class Source(ReleaseDownload):
+        archive = Remotefile('e2fsprogs-1.43.4.tar.gz',
+                             '1644db4fc58300c363ba1ab688cf9ca1e46157323aee1029f8255889be4bc856',
+                             'https://www.kernel.org/pub/linux/kernel/people/tytso/e2fsprogs/v1.43.4/e2fsprogs-1.43.4.tar.gz')
+        extract_dir = 'e2fsprogs-1.43.4'
+
+    class Builder(MakeBuilder):
+        configure_option = "--enable-libuuid"
+        configure_env = {'_format_CFLAGS' : "{env.CFLAGS} -fPIC"}
+        make_target = 'libs'
+        make_install_target = 'install-libs'
+
+
+class Xapian(Dependency):
+    name = "xapian-core"
+    version = "1.4.2"
+
+    class Source(ReleaseDownload):
+        archive = Remotefile('xapian-core-1.4.2.tar.xz',
+                             'aec2c4352998127a2f2316218bf70f48cef0a466a87af3939f5f547c5246e1ce')
+        patches = ["xapian_pkgconfig.patch"]
+
+    class Builder(MakeBuilder):
+        configure_option = "--disable-sse --disable-backend-inmemory --disable-documentation"
+        dynamic_configure_option = "--enable-shared --disable-static"
+        static_configure_option = "--enable-static --disable-shared"
+        configure_env = {'_format_LDFLAGS' : "-L{buildEnv.install_dir}/{buildEnv.libprefix}",
+                         '_format_CXXFLAGS' : "-I{buildEnv.install_dir}/include"}
+
     @property
     def full_name(self):
         return "{name}-{version}-{arch}-{api}".format(

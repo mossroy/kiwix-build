@@ -129,7 +129,6 @@ PACKAGE_NAME_MAPPERS = {
     },
     'Darwin_native_dyn': {
         'COMMON': ['autoconf', 'automake', 'libtool'],
-        'zlib': [],
 
     },
 }

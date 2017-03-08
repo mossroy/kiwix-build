@@ -2,4 +2,9 @@
 
 set -e
 
-./kiwix-build.py $BUILD_OPTION
+if [[ "x$ANDROID_BUILD" == "x" ]]
+then
+    ./kiwix-build.py $BUILD_OPTION
+else
+    ./kiwix-build-apk.py
+fi

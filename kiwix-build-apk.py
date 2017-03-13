@@ -360,7 +360,7 @@ class Builder:
 
 def build_android_lib(options, platform):
     kiwix_build_script = pj(SCRIPT_DIR, 'kiwix-build.py')
-    command = "{script} --working-dir {working_dir} --target-platform {platform} Kiwixlib"
+    command = "{script} --working-dir {working_dir} --target-platform {platform} --clean-at-end Kiwixlib"
     command = command.format(
         script = kiwix_build_script,
         working_dir = options.working_dir,

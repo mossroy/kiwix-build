@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, sys
+import os, sys, shutil
 import argparse
 import ssl
 import urllib.request
@@ -204,6 +204,16 @@ class BuildEnv:
         self.options = options
         self.libprefix = options.libprefix or self._detect_libdir()
         self.targetsDict = targetsDict
+
+    def clean_intermediate_directories(self):
+        for subdir in os.listdir(self.build_dir):
+            subpath = pj(self.build_dir, subdir)
+            if subpath == self.install_dir:
+                continue
+            if os.path.isdir(subpath):
+                shutil.rmtree(subpath)
+            else:
+                os.remove(subpath)
 
     def detect_platform(self):
         _platform = platform.system()
@@ -764,6 +774,9 @@ class Builder:
             self.prepare_sources()
             print("[BUILD]")
             self.build()
+            # No error, clean intermediate file at end of build if needed.
+            if self.buildEnv.options.clean_at_end:
+                self.buildEnv.clean_intermediate_directories()
         except StopBuild:
             sys.exit("Stopping build due to errors")
 
@@ -779,6 +792,8 @@ def parse_args():
                               " log files per commands"))
     parser.add_argument('--no-cert-check', action='store_true',
                         help="Skip SSL certificate verification during download")
+    parser.add_argument('--clean-at-end', action='store_true',
+                        help="Clean all intermediate files after the (successfull) build")
     return parser.parse_args()
 
 

@@ -10,7 +10,7 @@ from dependency_utils import (
     GradleBuilder,
     Builder as BaseBuilder)
 
-from utils import Remotefile, pj, SkipCommand, copy_tree, add_execution_right
+from utils import Remotefile, pj, SkipCommand, copy_tree, add_execution_right, StopBuild
 
 # *************************************
 # Missing dependencies
@@ -332,8 +332,11 @@ class KiwixAndroid(Dependency):
                     ('mips64', 'mips64'),
                     ('x86', 'x86'),
                     ('x86_64', 'x86_64')]:
-                libpath = pj(self.buildEnv.working_dir, 'BUILD_android_{}'.format(_platform), 'INSTALL', 'lib64', 'libkiwix.so')
-                assert os.path.exists(libpath)
+                libpath = pj(self.buildEnv.working_dir, 'BUILD_android_{}'.format(_platform), 'INSTALL', self.buildEnv.libprefix, 'libkiwix.so')
+                print("Check libpath {}".format(libpath))
+                if not os.path.exists(libpath):
+                    print("Impossible to found libkiwix.so for platform {}".format(_platform))
+                    raise StopBuild()
                 os.makedirs(pj(self.build_path, 'libs', _dir), exist_ok=True)
                 shutil.copy2(libpath, pj(self.build_path, 'libs', _dir))
 

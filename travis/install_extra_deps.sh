@@ -5,7 +5,7 @@ set -e
 orig_dir=$(pwd)
 
 sudo apt-get update -qq
-sudo apt-get install -qq python3-pip
+sudo apt-get install -qq python3-pip tree
 pip3 install meson
 
 # ninja

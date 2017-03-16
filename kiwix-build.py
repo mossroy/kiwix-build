@@ -208,8 +208,10 @@ class BuildEnv:
     def clean_intermediate_directories(self):
         for subdir in os.listdir(self.build_dir):
             subpath = pj(self.build_dir, subdir)
+            print("Try cleaning {}".format(subpath))
             if subpath == self.install_dir:
                 continue
+            print("Removing '{}'".format(subpath))
             if os.path.isdir(subpath):
                 shutil.rmtree(subpath)
             else:
@@ -775,8 +777,12 @@ class Builder:
             print("[BUILD]")
             self.build()
             # No error, clean intermediate file at end of build if needed.
+            print("[CLEAN]")
             if self.buildEnv.options.clean_at_end:
                 self.buildEnv.clean_intermediate_directories()
+                subprocess.check_call("tree {}".format(self.buildEnv.install_dir), shell=True)
+            else:
+                print("SKIP")
         except StopBuild:
             sys.exit("Stopping build due to errors")
 

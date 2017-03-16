@@ -42,6 +42,7 @@ class BuildEnv:
         self.detect_platform()
         self.setup_toolchains()
         self.options = options
+        self.libprefix = self._detect_libdir()
         self.targetsDict = targetsDict
 
     def detect_platform(self):
@@ -69,6 +70,25 @@ class BuildEnv:
 
     def __getattr__(self, name):
         return getattr(self.options, name)
+
+    def _is_debianlike(self):
+        return os.path.isfile('/etc/debian_version')
+
+    def _detect_libdir(self):
+        if self._is_debianlike():
+            try:
+                pc = subprocess.Popen(['dpkg-architecture', '-qDEB_HOST_MULTIARCH'],
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.DEVNULL)
+                (stdo, _) = pc.communicate()
+                if pc.returncode == 0:
+                    archpath = stdo.decode().strip()
+                    return 'lib/' + archpath
+            except Exception:
+                pass
+        if os.path.isdir('/usr/lib64') and not os.path.islink('/usr/lib64'):
+            return 'lib64'
+        return 'lib'
 
     def _set_env(self, env, cross_compile_env, cross_compile_path):
         if env is None:

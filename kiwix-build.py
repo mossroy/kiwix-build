@@ -37,7 +37,7 @@ CROSS_ENV = {
         }
     },
     'fedora_android': {
-        'toolchain_names': ['android_ndk', 'android_sdk'],
+        'toolchain_names': ['android_ndk'],
         'extra_libs': [],
         'host_machine': {
             'system': 'Android',
@@ -58,7 +58,7 @@ CROSS_ENV = {
         }
     },
     'debian_android': {
-        'toolchain_names': ['android_ndk', 'android_sdk'],
+        'toolchain_names': ['android_ndk'],
         'extra_libs': [],
         'host_machine': {
             'system': 'Android',
@@ -82,6 +82,8 @@ PACKAGE_NAME_MAPPERS = {
         'lzma': ['xz-devel'],
         'icu4c': None,
         'zimlib': None,
+        'file' : ['file-devel'],
+        'gumbo' : ['gumbo-parser-devel'],
     },
     'fedora_native_static': {
         'COMMON': ['gcc-c++', 'cmake', 'automake', 'glibc-static', 'libstdc++-static', 'ccache'],
@@ -103,17 +105,17 @@ PACKAGE_NAME_MAPPERS = {
                                # gcc cannot found them.
     },
     'fedora_android': {
-        'COMMON': ['gcc-c++', 'cmake', 'automake', 'ccache']
+        'COMMON': ['gcc-c++', 'cmake', 'automake', 'ccache', 'java-1.8.0-openjdk-devel']
     },
     'debian_native_dyn': {
-        'COMMON': ['gcc', 'cmake', 'libbz2-dev', 'ccache'],
+        'COMMON': ['automake', 'gcc', 'cmake', 'libbz2-dev', 'ccache'],
         'zlib': ['zlib1g-dev'],
         'uuid': ['uuid-dev'],
         'ctpp2': ['libctpp2-dev'],
         'libmicrohttpd': ['libmicrohttpd-dev', 'ccache']
     },
     'debian_native_static': {
-        'COMMON': ['gcc', 'cmake', 'libbz2-dev', 'ccache'],
+        'COMMON': ['automake', 'gcc', 'cmake', 'libbz2-dev', 'ccache'],
         'zlib': ['zlib1g-dev'],
         'uuid': ['uuid-dev'],
         'ctpp2': ['libctpp2-dev'],
@@ -125,11 +127,7 @@ PACKAGE_NAME_MAPPERS = {
         'COMMON': ['g++-mingw-w64-i686', 'gcc-mingw-w64-i686', 'gcc-mingw-w64-base', 'mingw-w64-tools', 'ccache']
     },
     'debian_android': {
-        'COMMON': ['gcc', 'cmake', 'ccache']
-    },
-    'Darwin_native_dyn': {
-        'COMMON': ['autoconf', 'automake', 'libtool'],
-
+        'COMMON': ['automake', 'gcc', 'cmake', 'ccache']
     },
 }
 
@@ -368,7 +366,9 @@ class BuildEnv:
                                           ])
 
         env['CPPFLAGS'] = " ".join(['-I'+pj(self.install_dir, 'include'), env['CPPFLAGS']])
-        env['LDFLAGS'] = " ".join(['-L'+pj(self.install_dir, 'lib'), env['LDFLAGS']])
+        env['LDFLAGS'] = " ".join(['-L'+pj(self.install_dir, 'lib'),
+                                   '-L'+pj(self.install_dir, 'lib64'),
+                                   env['LDFLAGS']])
         return env
 
     def run_command(self, command, cwd, context, env=None, input=None, cross_path_only=False):
@@ -386,6 +386,7 @@ class BuildEnv:
             if not self.options.verbose:
                 log = open(context.log_file, 'w')
             print("run command '{}'".format(command), file=log)
+            print("current directory is '{}'".format(cwd), file=log)
             print("env is :", file=log)
             for k, v in env.items():
                 print("  {} : {!r}".format(k, v), file=log)
@@ -438,9 +439,6 @@ class BuildEnv:
         elif self.distname in ('debian', 'Ubuntu'):
             package_installer = 'sudo apt-get install {}'
             package_checker = 'LANG=C dpkg -s {} 2>&1 | grep Status | grep "ok installed" 1>/dev/null 2>&1'
-        elif self.distname == 'Darwin':
-            package_installer = 'brew install {}'
-            package_checker = 'brew list -1 | grep -q {}'
         mapper_name = "{host}_{target}".format(
             host=self.distname,
             target=self.platform_info)
@@ -459,6 +457,10 @@ class BuildEnv:
             if packages:
                 packages_list += packages
                 dep.skip = True
+        for dep in self.targetsDict.values():
+            packages = getattr(dep, 'extra_packages', [])
+            for package in packages:
+                packages_list += package_name_mapper.get(package, [])
         if os.path.exists(autoskip_file):
             print("SKIP")
             return
@@ -582,23 +584,6 @@ class mingw32_toolchain(Toolchain):
         env['LIBS'] = " ".join(self.buildEnv.cross_env['extra_libs']) + " " +env['LIBS']
 
 
-class android_sdk(Toolchain):
-    name = 'android-sdk'
-    version = 'r25.2.3'
-
-    class Source(ReleaseDownload):
-        archive = Remotefile('tools_r25.2.3-linux.zip',
-                             '1b35bcb94e9a686dff6460c8bca903aa0281c6696001067f34ec00093145b560',
-                             'https://dl.google.com/android/repository/tools_r25.2.3-linux.zip')
-
-    def get_bin_dir(self):
-        return [pj(self.source_path, 'platform-tools'),
-                pj(self.source_path, 'tools')]
-
-    def set_env(self, env):       
-        env['ANDROID_HOME'] = self.source_path
-
-
 class android_ndk(Toolchain):
     name = 'android-ndk'
     version = 'r13b'
@@ -713,8 +698,7 @@ class android_ndk(Toolchain):
     def set_env(self, env):
         env['CC'] = self.binaries['CC']
         env['CXX'] = self.binaries['CXX']
-        
-        
+
         env['PKG_CONFIG_LIBDIR'] = pj(self.root_path, 'lib', 'pkgconfig')
         env['CFLAGS'] = '-fPIC -D_LARGEFILE64_SOURCE=1 -D_FILE_OFFSET_BITS=64 --sysroot={} '.format(self.root_path) + env['CFLAGS']
         env['CXXFLAGS'] = '-fPIC -D_LARGEFILE64_SOURCE=1 -D_FILE_OFFSET_BITS=64 --sysroot={} '.format(self.root_path) + env['CXXFLAGS']
@@ -728,7 +712,8 @@ class android_ndk(Toolchain):
 
 
 class Builder:
-    def __init__(self, options, targetDef='KiwixTools'):
+    def __init__(self, options):
+        self.options = options
         self.targets = OrderedDict()
         self.buildEnv = buildEnv = BuildEnv(options, self.targets)
 
@@ -739,6 +724,8 @@ class Builder:
         dependencies = list(remove_duplicates(dependencies))
 
         for dep in dependencies:
+            if self.options.build_deps_only and dep == targetDef:
+                continue
             self.targets[dep] = _targets[dep]
 
     def add_targets(self, targetName, targets):
@@ -757,6 +744,10 @@ class Builder:
         yield targetName
 
     def prepare_sources(self):
+        if self.options.skip_source_prepare:
+            print("SKIP")
+            return
+
         toolchain_sources = (tlc.source for tlc in self.buildEnv.toolchains if tlc.source)
         for toolchain_source in toolchain_sources:
             print("prepare sources for toolchain {} :".format(toolchain_source.name))
@@ -794,7 +785,8 @@ class Builder:
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('targets', default='KiwixTools', nargs='?')
+    parser.add_argument('targets', default='kiwix-tools', nargs='?',
+                        choices=Dependency.all_deps.keys())
     parser.add_argument('--working-dir', default=".")
     parser.add_argument('--libprefix', default=None)
     parser.add_argument('--target-platform', default="native_dyn", choices=BuildEnv.target_platforms)
@@ -803,6 +795,11 @@ def parse_args():
                               " log files per commands"))
     parser.add_argument('--no-cert-check', action='store_true',
                         help="Skip SSL certificate verification during download")
+    parser.add_argument('--skip-source-prepare', action='store_true',
+                        help="Skip the source download part")
+    parser.add_argument('--build-deps-only', action='store_true',
+                        help=("Build only the dependencies of the specified targets."))
+
     return parser.parse_args()
 
 

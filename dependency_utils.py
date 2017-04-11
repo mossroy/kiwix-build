@@ -11,7 +11,8 @@ class _MetaDependency(type):
     def __new__(cls, name, bases, dct):
         _class = type.__new__(cls, name, bases, dct)
         if name != 'Dependency':
-            Dependency.all_deps[name] = _class
+            dep_name = dct['name']
+            Dependency.all_deps[dep_name] = _class
         return _class
 
 
@@ -144,6 +145,8 @@ class GitClone(Source):
     def prepare(self):
         self.command('gitclone', self._git_clone)
         self.command('gitupdate', self._git_update)
+        if hasattr(self, '_post_prepare_script'):
+            self.command('post_prepare_script', self._post_prepare_script)
 
 
 class Builder:

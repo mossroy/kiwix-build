@@ -2,6 +2,7 @@ import os.path
 import hashlib
 import tarfile, zipfile
 import tempfile
+import os
 from collections import namedtuple, defaultdict
 
 pj = os.path.join
@@ -90,11 +91,19 @@ def extract_archive(archive_path, dest_dir, topdir=None, name=None):
                     topdir = _name
         if topdir:
             members_to_extract = [m for m in members if getname(m).startswith(topdir+'/')]
-            if is_zip_archive:
-                members_to_extract = [getname(m) for m in members_to_extract]
             os.makedirs(dest_dir, exist_ok=True)
             with tempfile.TemporaryDirectory(prefix=os.path.basename(archive_path), dir=dest_dir) as tmpdir:
-                archive.extractall(path=tmpdir, members=members_to_extract)
+                if is_zip_archive:
+                    _members_to_extract = [getname(m) for m in members_to_extract]
+                else:
+                    _members_to_extract = members_to_extract
+                archive.extractall(path=tmpdir, members=_members_to_extract)
+                if is_zip_archive:
+                    for member in members_to_extract:
+                        if isdir(member):
+                            continue
+                        perm = (member.external_attr >> 16) & 0x1FF
+                        os.chmod(pj(tmpdir, getname(member)), perm)
                 name = name or topdir
                 os.rename(pj(tmpdir, topdir), pj(dest_dir, name))
         else:

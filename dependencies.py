@@ -106,13 +106,12 @@ class UUID(Dependency):
 
 class Xapian(Dependency):
     name = "xapian-core"
-    version = "1.4.0"
+    version = "1.4.2"
 
     class Source(ReleaseDownload):
-        archive = Remotefile('xapian-core-1.4.0.tar.xz',
-                             '10584f57112aa5e9c0e8a89e251aecbf7c582097638bfee79c1fe39a8b6a6477')
-        patches = ["xapian_pkgconfig.patch",
-                   "xapian_no_hardcode_lz.patch"]
+        archive = Remotefile('xapian-core-1.4.2.tar.xz',
+                             'aec2c4352998127a2f2316218bf70f48cef0a466a87af3939f5f547c5246e1ce')
+        patches = ["xapian_pkgconfig.patch"]
 
     class Builder(MakeBuilder):
         configure_option = "--disable-sse --disable-backend-inmemory --disable-documentation"
@@ -124,7 +123,7 @@ class Xapian(Dependency):
         deps = ['zlib', 'lzma']
         if self.buildEnv.platform_info.build == 'win32':
             return deps
-        return deps + ['UUID']
+        return deps + ['uuid']
 
 
 class CTPP2(Dependency):
@@ -176,6 +175,12 @@ class Icu(Dependency):
     version = "58_2"
 
     class Source(ReleaseDownload):
+        name = "icu4c"
+
+        @property
+        def source_dir(self):
+            return "{}-{}".format(self.name, self.target.version)
+
         archive = Remotefile('icu4c-58_2-src.tgz',
                              '2b0a4410153a9b20de0e20c7d8b66049a72aef244b53683d0d7521371683da0c',
                              'https://freefr.dl.sourceforge.net/project/icu/ICU4C/58.2/icu4c-58_2-src.tgz')
@@ -202,10 +207,10 @@ class Icu(Dependency):
 
 
 class Icu_native(Icu):
+    name = "icu4c_native"
     force_native_build = True
 
     class Builder(Icu.Builder):
-        name = "icu_native"
         @property
         def build_path(self):
             return super().build_path+"_native"
@@ -215,42 +220,63 @@ class Icu_native(Icu):
 
 
 class Icu_cross_compile(Icu):
-    dependencies = ['Icu_native']
+    name = "icu4c_cross-compile"
+    dependencies = ['icu4c_native']
 
     class Builder(Icu.Builder):
-        name = "icu_cross-compile"
         @property
         def configure_option(self):
-            Icu_native = self.buildEnv.targetsDict['Icu_native']
-            return super().configure_option + " --with-cross-build=" + Icu_native.builder.build_path
+            icu_native_dep = self.buildEnv.targetsDict['icu4c_native']
+            return super().configure_option + " --with-cross-build=" + icu_native_dep.builder.build_path
 
 
-class Zimlib(Dependency):
-    name = "zimlib"
+class Libzim(Dependency):
+    name = "libzim"
+    dependencies = ['zlib', 'lzma']
 
     class Source(GitClone):
-        #git_remote = "https://gerrit.wikimedia.org/r/p/openzim.git"
-        git_remote = "https://github.com/mgautierfr/openzim"
-        git_dir = "openzim"
-        git_ref = "meson"
+        git_remote = "https://github.com/openzim/libzim.git"
+        git_dir = "libzim"
 
-    class Builder(MesonBuilder):
-        subsource_dir = "zimlib"
+    Builder = MesonBuilder
+
+
+class Zimwriterfs(Dependency):
+    name = "zimwriterfs"
+    extra_packages = ['file', 'gumbo']
+
+    @property
+    def dependencies(self):
+        base_dependencies = ['libzim', 'zlib', 'lzma', 'xapian-core']
+        if self.buildEnv.platform_info.build != 'native':
+            return base_dependencies + ["icu4c_cross-compile"]
+        else:
+            return base_dependencies + ["icu4c"]
+
+    class Source(GitClone):
+        git_remote = "https://github.com/openzim/zimwriterfs.git"
+        git_dir = "zimwriterfs"
+
+        def _post_prepare_script(self, context):
+            context.try_skip(self.git_path)
+            command = "./autogen.sh"
+            self.buildEnv.run_command(command, self.git_path, context)
+
+    Builder = MakeBuilder
 
 
 class Kiwixlib(Dependency):
     name = "kiwix-lib"
-    dependencies = ['zlib', 'lzma']
 
     @property
     def dependencies(self):
-        base_dependencies = ["Xapian", "Pugixml", "Zimlib"]
+        base_dependencies = ["xapian-core", "pugixml", "libzim", "zlib", "lzma"]
         if self.buildEnv.platform_info.build != 'android':
-            base_dependencies += ['CTPP2']
+            base_dependencies += ['ctpp2']
         if self.buildEnv.platform_info.build != 'native':
-            return base_dependencies + ["Icu_cross_compile"]
+            return base_dependencies + ["icu4c_cross-compile"]
         else:
-            return base_dependencies + ["Icu"]
+            return base_dependencies + ["icu4c"]
 
     class Source(GitClone):
         git_remote = "https://github.com/kiwix/kiwix-lib.git"
@@ -273,7 +299,7 @@ class Kiwixlib(Dependency):
 
 class KiwixTools(Dependency):
     name = "kiwix-tools"
-    dependencies = ["Kiwixlib", "MicroHttpd", "zlib"]
+    dependencies = ["kiwix-lib", "libmicrohttpd", "zlib"]
 
     class Source(GitClone):
         git_remote = "https://github.com/kiwix/kiwix-tools.git"

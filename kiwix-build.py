@@ -31,7 +31,7 @@ CROSS_ENV = {
         'extra_libs': ['-lwinmm', '-lws2_32', '-lshlwapi', '-lrpcrt4', '-lmsvcr90'],
         'extra_cflags': ['-DWIN32'],
         'host_machine': {
-            'system': 'windows',
+            'system': 'Windows',
             'cpu_family': 'x86',
             'cpu': 'i686',
             'endian': 'little'
@@ -54,7 +54,7 @@ CROSS_ENV = {
         'extra_libs': ['-lwinmm', '-lws2_32', '-lshlwapi', '-lrpcrt4', '-lmsvcr90'],
         'extra_cflags': ['-DWIN32'],
         'host_machine': {
-            'system': 'windows',
+            'system': 'Windows',
             'cpu_family': 'x86',
             'cpu': 'i686',
             'endian': 'little'
@@ -244,6 +244,7 @@ class BuildEnv:
                             target = platform_info.build,
                             host = self.distname
                         ))
+            self.cross_env['host_machine']['lsystem'] = self.cross_env['host_machine']['system'].lower()
 
     def setup_toolchains(self):
         toolchain_names = self.cross_env.get('toolchain_names', [])

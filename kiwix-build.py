@@ -24,10 +24,9 @@ REMOTE_PREFIX = 'http://download.kiwix.org/dev/'
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
-    'fedora_win32': {
 CROSS_CONFIG = {
+    'win32': {
         'toolchain_names': ['mingw32_toolchain'],
-        'root_path': '/usr/i686-w64-mingw32/sys-root/mingw',
         'extra_libs': ['-lwinmm', '-lws2_32', '-lshlwapi', '-lrpcrt4', '-lmsvcr90'],
         'extra_cflags': ['-DWIN32'],
         'host_machine': {
@@ -37,30 +36,7 @@ CROSS_CONFIG = {
             'endian': 'little'
         }
     },
-    'fedora_android': {
-        'toolchain_names': ['android_ndk'],
-        'extra_libs': [],
-        'extra_cflags': [],
-        'host_machine': {
-            'system': 'Android',
-            'cpu_family': 'x86',
-            'cpu': 'i686',
-            'endian': 'little'
-        }
-    },
-    'debian_win32': {
-        'toolchain_names': ['mingw32_toolchain'],
-        'root_path': '/usr/i686-w64-mingw32/',
-        'extra_libs': ['-lwinmm', '-lws2_32', '-lshlwapi', '-lrpcrt4', '-lmsvcr90'],
-        'extra_cflags': ['-DWIN32'],
-        'host_machine': {
-            'system': 'Windows',
-            'cpu_family': 'x86',
-            'cpu': 'i686',
-            'endian': 'little'
-        }
-    },
-    'debian_android': {
+    'android': {
         'toolchain_names': ['android_ndk'],
         'extra_libs': [],
         'extra_cflags': [],
@@ -233,16 +209,12 @@ class BuildEnv:
         if platform_info.build == 'native':
             self.cross_config = {}
         else:
-            cross_name = "{host}_{target}".format(
-                host = self.distname,
-                target = platform_info.build)
             try:
-                self.cross_config = CROSS_CONFIG[cross_name]
+                self.cross_config = CROSS_CONFIG[platform_info.build]
             except KeyError:
                 sys.exit("ERROR : We don't know how to set env to compile"
-                         " a {target} version on a {host} host.".format(
-                            target = platform_info.build,
-                            host = self.distname
+                         " a {target} version.".format(
+                            target = platform_info.build
                         ))
             self.cross_config['host_machine']['lsystem'] = self.cross_config['host_machine']['system'].lower()
 
@@ -555,9 +527,16 @@ class mingw32_toolchain(Toolchain):
     name = 'mingw32'
     arch_full = 'i686-w64-mingw32'
 
-    @property
-    def root_path(self):
-        return self.buildEnv.cross_config['root_path']
+    def __init__(self, buildEnv):
+        super().__init__(buildEnv)
+        if buildEnv.distname in ('fedora', 'redhat', 'centos'):
+            self.root_path = '/usr/i686-w64-mingw32/sys-root/mingw'
+        elif buildEnv.distname in ('debian', 'ubuntu'):
+            self.root_path = '/usr/i686-w64-mingw32'
+        else:
+            print(("We don't know where is the sys_root for win32 cross "
+                   "compilation on platform {}").format(buildEnv.distname))
+            sys.exit(-1)
 
     @property
     def binaries(self):

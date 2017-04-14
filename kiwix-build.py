@@ -24,8 +24,8 @@ REMOTE_PREFIX = 'http://download.kiwix.org/dev/'
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
-CROSS_ENV = {
     'fedora_win32': {
+CROSS_CONFIG = {
         'toolchain_names': ['mingw32_toolchain'],
         'root_path': '/usr/i686-w64-mingw32/sys-root/mingw',
         'extra_libs': ['-lwinmm', '-lws2_32', '-lshlwapi', '-lrpcrt4', '-lmsvcr90'],
@@ -231,23 +231,23 @@ class BuildEnv:
     def setup_build(self, target_platform):
         self.platform_info = platform_info = self.target_platforms[target_platform]
         if platform_info.build == 'native':
-            self.cross_env = {}
+            self.cross_config = {}
         else:
             cross_name = "{host}_{target}".format(
                 host = self.distname,
                 target = platform_info.build)
             try:
-                self.cross_env = CROSS_ENV[cross_name]
+                self.cross_config = CROSS_CONFIG[cross_name]
             except KeyError:
                 sys.exit("ERROR : We don't know how to set env to compile"
                          " a {target} version on a {host} host.".format(
                             target = platform_info.build,
                             host = self.distname
                         ))
-            self.cross_env['host_machine']['lsystem'] = self.cross_env['host_machine']['system'].lower()
+            self.cross_config['host_machine']['lsystem'] = self.cross_config['host_machine']['system'].lower()
 
     def setup_toolchains(self):
-        toolchain_names = self.cross_env.get('toolchain_names', [])
+        toolchain_names = self.cross_config.get('toolchain_names', [])
         self.toolchains =[Toolchain.all_toolchains[toolchain_name](self)
                               for toolchain_name in toolchain_names]
 
@@ -265,7 +265,7 @@ class BuildEnv:
             template = f.read()
         content = template.format(
             toolchain=self.toolchains[0],
-            **self.cross_env
+            **self.cross_config
         )
         with open(crossfile, 'w') as outfile:
             outfile.write(content)
@@ -339,9 +339,9 @@ class BuildEnv:
 
         bin_dirs = []
         if cross_compile_env:
-            for k, v in self.cross_env.get('env', {}).items():
+            for k, v in self.cross_config.get('env', {}).items():
                 if k.startswith('_format_'):
-                    v = v.format(**self.cross_env)
+                    v = v.format(**self.cross_config)
                     k = k[8:]
                 env[k] = v
             for toolchain in self.toolchains:
@@ -557,7 +557,7 @@ class mingw32_toolchain(Toolchain):
 
     @property
     def root_path(self):
-        return self.buildEnv.cross_env['root_path']
+        return self.buildEnv.cross_config['root_path']
 
     @property
     def binaries(self):
@@ -584,7 +584,7 @@ class mingw32_toolchain(Toolchain):
         env['PKG_CONFIG_LIBDIR'] = pj(self.root_path, 'lib', 'pkgconfig')
         env['CFLAGS'] = " -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions --param=ssp-buffer-size=4 "+env['CFLAGS']
         env['CXXFLAGS'] = " -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions --param=ssp-buffer-size=4 "+env['CXXFLAGS']
-        env['LIBS'] = " ".join(self.buildEnv.cross_env['extra_libs']) + " " +env['LIBS']
+        env['LIBS'] = " ".join(self.buildEnv.cross_config['extra_libs']) + " " +env['LIBS']
 
 
 class android_ndk(Toolchain):

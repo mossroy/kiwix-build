@@ -71,6 +71,14 @@ EOF
         tar -czf "${NIGHTLY_ARCHIVES_DIR}/$ARCHIVE_NAME" $FILES_LIST
       )
       ;;
+    armhf_static)
+      ARCHIVE_NAME="kiwix-tools_armhf_$(date +%Y-%m-%d).tar.gz"
+      FILES_LIST="kiwix-install kiwix-manage kiwix-read kiwix-search kiwix-serve"
+      (
+        cd ${BASE_DIR}/INSTALL/bin
+        tar -czf "${NIGHTLY_ARCHIVES_DIR}/$ARCHIVE_NAME" $FILES_LIST
+      )
+      ;;
   esac
 
 else
